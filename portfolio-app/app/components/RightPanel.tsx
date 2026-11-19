@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef } from "react";
 
 type Item = {
   color: string;
@@ -22,39 +22,43 @@ export default function RightPanel({
   animating,
   direction,
 }: RightPanelProps) {
-  const [mousePosition, setMousePosition] = useState({
-    x: 0,
-    y: 0,
-  });
+  const imageRef = useRef<HTMLDivElement>(null);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!imageRef.current) return;
+
     const rect = e.currentTarget.getBoundingClientRect();
 
     const x = (e.clientX - rect.left - rect.width / 2) / rect.width;
 
     const y = (e.clientY - rect.top - rect.height / 2) / rect.height;
 
-    setMousePosition({ x, y });
+    imageRef.current.style.transform = `translate(
+      ${-x * 30}px,
+      ${-y * 30}px
+    )`;
+  };
+
+  const handleMouseLeave = () => {
+    if (!imageRef.current) return;
+
+    imageRef.current.style.transform = "translate(0px, 0px)";
   };
 
   return (
     <div
       className="absolute top-0 right-0 h-screen w-[75vw] overflow-hidden"
       onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
     >
       <div
-        className="absolute inset-0 flex items-center justify-center text-9xl transition-transform duration-200 ease-out"
-        style={{
-          transform: `translate(
-            ${-mousePosition.x * 30}px,
-            ${-mousePosition.y * 30}px
-          )`,
-        }}
+        ref={imageRef}
+        className="absolute inset-0 flex items-center justify-center text-9xl transition-transform duration-300 ease-out"
       >
         {items[current].image}
       </div>
 
-      {next !== null && (
+      {next !== null && items[next] && (
         <div
           className="
             absolute inset-0
