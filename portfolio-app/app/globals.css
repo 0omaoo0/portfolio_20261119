@@ -24,3 +24,55 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/*
+ * ページ遷移のアニメーション（app/components/PageTransition.tsx から使う）
+ *
+ * ページが切り替わる時、ブラウザが前後のページの画像を撮り、
+ * ::view-transition-old(...) … 消える側のページの画像
+ * ::view-transition-new(...) … 新しく表示される側のページの画像
+ * ::view-transition-group(...) … その2枚を入れている枠（重なり順 z-index はここで指定する）
+ * として動かせるようにしてくれる。( ) の中の .page-xxx は PageTransition で付けたクラス名。
+ */
+
+/* 動く側のページを、とどまる側のページより手前に重ねる */
+::view-transition-group(.page-drop-in),
+::view-transition-group(.page-lift-out) {
+  z-index: 2;
+}
+
+/* 進む時：新しいページが上からスライドして下りてくる */
+::view-transition-new(.page-drop-in) {
+  animation: page-slide-from-top 700ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+/* 戻る時：今のページが上へスライドして戻っていく（下りてきた時の逆再生） */
+::view-transition-old(.page-lift-out) {
+  animation: page-slide-from-top 700ms cubic-bezier(0.65, 0, 0.35, 1) reverse both;
+}
+
+/* とどまる側のページは動かさない（標準のフェードも止めて、覆われる／現れるだけにする） */
+::view-transition-old(.page-stay),
+::view-transition-new(.page-stay) {
+  animation: none;
+}
+
+/* 画面全体（ページ以外の部分）の標準のフェードを止める */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+/* アニメーション中もクリックを受け付ける（そのままだとアニメーション中のクリックが無視される） */
+::view-transition {
+  pointer-events: none;
+}
+
+@keyframes page-slide-from-top {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
