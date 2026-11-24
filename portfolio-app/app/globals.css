@@ -12,11 +12,14 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/*
+ * 端末がダークモードでも、背景は白・文字は黒のままにする
+ * （元はダークモードの時に背景が黒くなる設定があったが、
+ *   このサイトはパステルカラー＋黒い文字のデザインなので削除した）
+ * color-scheme: light … フォームやスクロールバーなど、ブラウザ標準の部品もライト表示にそろえる
+ */
+:root {
+  color-scheme: light;
 }
 
 body {
