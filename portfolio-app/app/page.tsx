@@ -2,118 +2,146 @@
 
 import { useEffect, useState } from "react";
 
-// 左パネル
+// 画面左側：背景色の台形パネル＋「my portfolio」のタイトル
 import LeftPanel from "./components/LeftPanel";
 
-// 右パネル
+// 画面右側：スライドごとのイラスト（画像）を表示するパネル
 import RightPanel from "./components/RightPanel";
 
-// 表示データ
+/**
+ * スライドの表示データ
+ * - color : 左パネルの背景色（下の丸いトグルの色にも使う）
+ * - image : 右パネルに表示する画像のパス（public/ からの相対パス）
+ *
+ * ※ 今は仮の sample 画像。本番の画像ができたら public/ に置いてパスを差し替える。
+ */
 const items = [
-  { color: "#fbcfe8", image: "AAAAAA" },
-  { color: "#bfdbfe", image: "🐱" },
-  { color: "#bbf7d0", image: "🐼" },
-  { color: "#fde68a", image: "🦊" },
-  { color: "#d8b4fe", image: "🐯" },
+  { color: "#fbcfe8", image: "/samples/sample1.svg" },
+  { color: "#bfdbfe", image: "/samples/sample2.svg" },
+  { color: "#bbf7d0", image: "/samples/sample3.svg" },
+  { color: "#fde68a", image: "/samples/sample4.svg" },
+  { color: "#d8b4fe", image: "/samples/sample5.svg" },
 ];
 
 export default function Home() {
-  // 現在表示中のindex
-  const [current, setCurrent] = useState(0);
+  // いま画面に表示されているスライドの番号（items の index）
+  const [viewCurrentIndex, setViewCurrentIndex] = useState(0);
 
-  // スクロール方向
-  const [direction, setDirection] = useState<"up" | "down">("down");
+  // 切り替えの向き（ホイールの向き、またはトグルで押した丸が上か下か）。
+  // 次のスライドを「上から入れるか／下から入れるか」を決めるために左右パネルへ渡す。
+  const [mouseWheelDirection, setMouseWheelDirection] = useState<"up" | "down">(
+    "down",
+  );
 
-  // 次に表示するindex
+  // 切り替え先のスライド番号。
+  // 切り替えアニメーション中だけ値が入り、それ以外は null（＝次のスライドは描画しない）。
   const [next, setNext] = useState<number | null>(null);
 
-  // アニメーション中かどうか
-  const [animating, setAnimating] = useState(false);
+  // 切り替えアニメーションの最中かどうか。
+  // true の間は連続スクロールやボタン連打を受け付けないようにする。
+  const [isAnimating, setIsAnimating] = useState(false);
 
-  // 切り替え処理
-  const handleChange = (index: number) => {
-    // 同じ要素 or アニメ中なら無視
-    if (index === current || animating) return;
+  /**
+   * 指定したスライドへ切り替える処理
+   *
+   * 流れ：
+   *  1. setNext で「次のスライド」を画面外（上 or 下）に配置した状態で描画
+   *  2. 2フレーム待ってから isAnimating=true にし、CSS transition で画面内へスライドさせる
+   *     （「画面外に置いた状態」が一度描画されてからでないと、transition が効かずに一瞬で切り替わるため）
+   *  3. 0.8 秒後（transition の 0.7 秒＋余裕）に「次」を「現在」に確定して後片付け
+   *
+   * 向き（direction）：
+   *  - down … 左の色は上から下りてくる／右の画像は下から上がってくる
+   *  - up   … その逆（左の色は下から上がる／右の画像は上から下りる）
+   *  - 省略時（トグルから呼ばれた時）は番号で決める：
+   *    今より下の丸（番号が大きい）なら down、上の丸（番号が小さい）なら up
+   *
+   * @param index     行き先のスライド番号
+   * @param direction 向き。ホイールの時は明示する（最後→最初へのループでも down にしたいため）
+   */
+  const handleChange = (index: number, direction?: "up" | "down") => {
+    // すでに表示中のスライド、またはアニメーション中なら何もしない
+    if (index === viewCurrentIndex || isAnimating) return;
 
-    // 次の要素をセット
+    // 向きを決めて左右パネルへ伝える
+    setMouseWheelDirection(direction ?? (index > viewCurrentIndex ? "down" : "up"));
+
+    // 1. 次のスライドを画面外に配置
     setNext(index);
 
-    // アニメーション開始
+    // 2. 2フレーム待ってからアニメーション開始
+    //    1フレームだけだと、ホイール操作の時に React が setNext と setIsAnimating を
+    //    まとめて1回で描画してしまうことがあり、アニメーションせずにパッと切り替わる
     requestAnimationFrame(() => {
-      setAnimating(true);
+      requestAnimationFrame(() => {
+        setIsAnimating(true);
+      });
     });
 
-    // アニメーション終了
+    // 3. アニメーション完了後、表示中のスライドを更新して状態をリセット
     setTimeout(() => {
-      setCurrent(index);
+      setViewCurrentIndex(index);
       setNext(null);
-      setAnimating(false);
+      setIsAnimating(false);
     }, 800);
   };
 
-  // ホイール切り替え
+  /**
+   * マウスホイールでスライドを前後に切り替える
+   * - 下スクロール：次のスライドへ（最後まで行ったら最初に戻る）
+   * - 上スクロール：前のスライドへ（最初より前に行ったら最後に戻る）
+   */
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
-      // アニメ中なら無視
-      if (animating) return;
+      // アニメーション中のスクロールは無視（1回のスクロールで何枚も進まないように）
+      if (isAnimating) return;
 
-      // 下スクロール
+      // deltaY > 0 なら下方向へのスクロール
       if (e.deltaY > 0) {
-        setDirection("down");
-
-        handleChange((current + 1) % items.length);
-      }
-      // 上スクロール
-      else {
-        setDirection("up");
-
-        handleChange((current - 1 + items.length) % items.length);
+        // % items.length で末尾の次を先頭にループさせる
+        handleChange((viewCurrentIndex + 1) % items.length, "down");
+      } else {
+        // + items.length してから % することで、0 の前が末尾になる（負の数を防ぐ）
+        handleChange((viewCurrentIndex - 1 + items.length) % items.length, "up");
       }
     };
 
     window.addEventListener("wheel", handleWheel);
 
+    // コンポーネントが消える時／依存値が変わる時に古いリスナーを外す
     return () => {
       window.removeEventListener("wheel", handleWheel);
     };
-  }, [current, animating]);
+  }, [viewCurrentIndex, isAnimating]);
 
   return (
-    <main className="relative h-screen overflow-hidden">
-      {/* 左背景 */}
+    // 画面全体を1枚の固定ステージとして使う（スクロールバーは出さない）
+    // h-dvh … スマホのアドレスバーの出し入れを考慮した「実際に見えている高さ」
+    <main className="relative h-dvh overflow-hidden">
+      {/* 左パネル（背景色＋タイトル）。右パネルより奥に置く */}
       <div className="absolute inset-0 z-10">
         <LeftPanel
           items={items}
-          current={current}
+          viewCurrentIndex={viewCurrentIndex}
           next={next}
-          animating={animating}
-          direction={direction}
+          isAnimating={isAnimating}
+          mouseWheelDirection={mouseWheelDirection}
         />
       </div>
 
-      {/* 右イラスト */}
+      {/*
+        右パネル（イラスト画像＋右端のトグル）。左パネルに重なるので手前に置く
+        onToggleChange … トグルの丸が押された時に呼ぶ切り替え処理
+      */}
       <div className="absolute inset-0 z-20">
         <RightPanel
           items={items}
-          current={current}
+          viewCurrentIndex={viewCurrentIndex}
           next={next}
-          animating={animating}
-          direction={direction}
+          isAnimating={isAnimating}
+          mouseWheelDirection={mouseWheelDirection}
+          onToggleChange={(index) => handleChange(index)}
         />
-      </div>
-
-      {/* デバッグ用トグル */}
-      <div className="fixed bottom-10 left-1/2 z-20 flex -translate-x-1/2 gap-3">
-        {items.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => handleChange(index)}
-            className={`
-              h-4 w-4 rounded-full border
-              ${current === index ? "bg-green-500" : "bg-white"}
-            `}
-          />
-        ))}
       </div>
     </main>
   );
