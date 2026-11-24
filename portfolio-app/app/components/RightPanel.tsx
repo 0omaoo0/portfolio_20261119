@@ -132,8 +132,22 @@ export default function RightPanel({
         ref={parallaxRef}
         className="absolute inset-0 transition-transform duration-300 ease-out"
       >
-        {/* 表示中の画像 */}
-        <div className={layerClass}>
+        {/*
+          表示中の画像
+          切り替え中は、次の画像が濃くなるのと同じ 1.2 秒かけて、だんだん透明になっていく（入れ替わるように見える）
+
+          transition は「切り替え中だけ」付けている。
+          切り替えが終わると、この枠の中身が次の画像に入れ替わって opacity も 1 に戻る。
+          その時に transition が付いていると、新しい画像が透明から濃くなる動きをもう一度してしまうので、
+          戻す時は transition なしで一瞬で戻している。
+        */}
+        <div
+          className={layerClass}
+          style={{
+            opacity: isAnimating ? 0 : 1,
+            transition: isAnimating ? "opacity 1200ms" : "none",
+          }}
+        >
           <SlideImage src={items[viewCurrentIndex].image} />
         </div>
 
@@ -142,16 +156,25 @@ export default function RightPanel({
           左パネルの背景とは逆向きに動かして、交差するような動きにしている
           - 下スクロール：下の画面外で待機 → 上へスライドして入ってくる
           - 上スクロール：上の画面外で待機 → 下へスライドして入ってくる
+          さらに、スライドしながら薄い状態（opacity 0）から濃く（opacity 1）なっていく
+          transition-[transform,opacity] … 位置と濃さの両方を変化させる
+          transitionDuration … 「位置 0.7 秒, 濃さ 1.2 秒」の順。
+            スライドが止まった後もしばらくかけて、ゆっくり実体化するようにしている
+            （濃さの秒数を変える時は、page.tsx の切り替え完了タイマー 1300 も合わせて変える）
         */}
         {next !== null && items[next] && (
           <div
-            className={`${layerClass} transition-transform duration-700`}
+            className={`${layerClass} transition-[transform,opacity] duration-700`}
             style={{
               transform: isAnimating
                 ? "translateY(0%)" // アニメーション中：定位置へ移動
                 : mouseWheelDirection === "down"
                   ? "translateY(100%)" // 下スクロール時：下の画面外で待機
                   : "translateY(-100%)", // 上スクロール時：上の画面外で待機
+              // 待機中は透明、アニメーション中に濃くなる
+              opacity: isAnimating ? 1 : 0,
+              // 位置は 0.7 秒、濃さは 1.2 秒かけて変化させる
+              transitionDuration: "700ms, 1200ms",
             }}
           >
             <SlideImage src={items[next].image} />
@@ -164,10 +187,14 @@ export default function RightPanel({
         マウス追従レイヤーの外に置いているので、マウスを動かしてもトグルは動かない
 
         強調する丸は「切り替え先（next）があればそれ、なければ表示中のもの」。
-        表示中の番号（viewCurrentIndex）はアニメーションが終わる 0.8 秒後にしか変わらないため、
+        表示中の番号（viewCurrentIndex）はアニメーションが終わる 1.3 秒後にしか変わらないため、
         それだけを見ると、押してから丸が切り替わるまでに遅れが出てしまう。
       */}
-      <div className="absolute top-1/2 right-2 -translate-y-1/2 sm:right-4 md:right-6">
+      {/*
+        pointer-events-auto … 親（page.tsx）でクリックを素通りさせる設定にしているので、
+        トグルだけはクリックを受け取れるように戻している
+      */}
+      <div className="pointer-events-auto absolute top-1/2 right-2 -translate-y-1/2 sm:right-4 md:right-6">
         <SlideToggle
           items={items}
           activeIndex={next ?? viewCurrentIndex}
