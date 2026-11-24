@@ -1,17 +1,7 @@
-import { Google_Sans } from "next/font/google";
+import Link from "next/link";
 
-/**
- * タイトル用フォント（Google Fonts の Google Sans）
- * next/font を使うとビルド時にフォントがダウンロードされ、自分のサイトから配信される。
- * （表示時に Google へリクエストが飛ばない＆読み込み時のガタつきが起きない）
- * 万一読み込めなかった時は、Apple 端末のシステムフォント（SF Pro）などで代用する。
- * ※ next/font の呼び出しはコンポーネントの外（ファイルの一番上の階層）に書く決まり。
- */
-const titleFont = Google_Sans({
-  subsets: ["latin"],
-  weight: ["400", "600"],
-  fallback: ["-apple-system", "BlinkMacSystemFont", "Helvetica Neue", "sans-serif"],
-});
+// タイトル用フォント（Google Sans）。自己紹介・スキルのページと共通なので app/fonts.ts で定義している
+import { titleFont } from "../fonts";
 
 // 1スライド分のデータ（page.tsx の items と同じ形）
 type Item = {
@@ -90,24 +80,80 @@ export default function LeftPanel({
       )}
 
       {/*
-        タイトル「my portfolio」
-        背景色より後に書くことで、背景が切り替わっても常に一番上に表示される
-        画面幅が狭いほど文字と余白を小さくする（スマホ → sm: 640px 以上 → md: 768px 以上）
+        文字のエリア（タイトル・肩書きなど）
+        中身は absolute を使わず、上から普通に並べるだけ。文字を足したい時はこの中に書けばよい。
+
+        relative を付けているのは「背景色のレイヤーより手前に出す」ため。
+        背景色のレイヤーは absolute なので、relative も absolute も付いていない普通の要素は
+        背景の「下」に描かれて見えなくなってしまう。
+        （relative は位置を動かさないので、レイアウトは普通に並べた時と同じ）
+
+        余白（p）は画面幅が狭いほど小さくする（スマホ → sm: 640px 以上 → md: 768px 以上）
       */}
-      <h1
-        className={`
-          ${titleFont.className}
-          absolute top-5 left-4
-          text-xl leading-tight tracking-tight text-neutral-800
-          select-none
-          sm:top-8 sm:left-8 sm:text-3xl
-          md:top-12 md:left-12 md:text-4xl
-        `}
-      >
-        my
-        <br />
-        <span className="font-semibold">portfolio</span>
-      </h1>
+      <div className="relative flex flex-col gap-2 p-4 pt-5 select-none sm:p-8 md:p-12">
+        {/*
+          タイトル「my portfolio」
+          スマホだけは文字サイズを画面幅の 7%（7vw）にしている。
+          左パネルは画面幅の 40% しかないので、固定サイズだと「portfolio」がはみ出すため、
+          画面幅に比例させて、どのスマホでもパネル内に収まるようにしている。
+        */}
+        <h1
+          className={`
+            ${titleFont.className}
+            text-[7vw] leading-tight tracking-tight text-neutral-800
+            sm:text-5xl md:text-6xl
+          `}
+        >
+          my
+          <br />
+          <span className="font-semibold">portfolio</span>
+        </h1>
+
+        {/* 肩書き */}
+        <p className="text-sm text-neutral-600">
+          frontend engineer / web developer
+        </p>
+
+        {/*
+          各ページへのリンク
+          - underline decoration-dashed … 文字の下に破線を引く
+          - underline-offset-4 … 破線を文字から少し離して読みやすくする
+          - w-fit … リンクの幅を文字の長さに合わせる（横いっぱいに広がって押せる範囲が伸びないように）
+          - マウスを乗せると、少し浮き上がって（-translate-y-1）下に影が落ちる（text-shadow-lg）
+            ので、立体的に見えて押せることが分かりやすい
+          - transitionTypes={["nav-forward"]} … 「奥のページへ進む」遷移だと伝える。
+            globals.css の設定で、次のページが上からスライドして下りてくる
+        */}
+        {/*
+          文字の大きさは「my portfolio」の2段階下
+          - スマホ：4.5vw（タイトルの 7vw と同じく画面幅に比例させて、はみ出さないようにする）
+          - sm（640px 以上）：text-3xl（タイトルは text-5xl）
+          - md（768px 以上）：text-4xl（タイトルは text-6xl）
+        */}
+        <nav className="mt-4 flex flex-col gap-6 text-[4.5vw] text-neutral-800 sm:mt-6 sm:text-3xl md:text-4xl">
+          <Link
+            href="/about"
+            transitionTypes={["nav-forward"]}
+            className="w-fit underline decoration-dashed underline-offset-4 transition-all duration-200 hover:-translate-y-1 hover:text-shadow-lg"
+          >
+            About me
+          </Link>
+          <Link
+            href="/skills"
+            transitionTypes={["nav-forward"]}
+            className="w-fit underline decoration-dashed underline-offset-4 transition-all duration-200 hover:-translate-y-1 hover:text-shadow-lg"
+          >
+            Skills
+          </Link>
+          <Link
+            href="/contact"
+            transitionTypes={["nav-forward"]}
+            className="w-fit underline decoration-dashed underline-offset-4 transition-all duration-200 hover:-translate-y-1 hover:text-shadow-lg"
+          >
+            Contact
+          </Link>
+        </nav>
+      </div>
     </div>
   );
 }
